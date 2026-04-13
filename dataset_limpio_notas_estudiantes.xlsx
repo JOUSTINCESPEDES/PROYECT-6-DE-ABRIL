@@ -1,0 +1,25 @@
+CREATE DATABASE escuela
+    DEFAULT CHARACTER SET = 'utf8mb4';
+
+USE escuela;
+
+CREATE TABLE usuarios (
+    idUsuario INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(40) NOT NULL,
+    passwordUser VARCHAR(255) NOT NULL,
+    rolUsu VARCHAR(20) NOT NULL
+);
+CREATE TABLE estudiantes (
+    idEstudiante INT AUTO_INCREMENT PRIMARY KEY,
+    nombreEstu VARCHAR(40) NOT NULL,
+    edadEstu INT NOT NULL,
+    carrera VARCHAR(40) NOT NULL,
+    nota1 DECIMAL(5,2),
+    nota2 DECIMAL(5,2),
+    nota3 DECIMAL(5,2),
+    promedio DECIMAL(5,2),
+    desempeno VARCHAR(20)
+);
+
+ALTER TABLE estudiantes
+ADD UNIQUE(nombreEstu, carrera);

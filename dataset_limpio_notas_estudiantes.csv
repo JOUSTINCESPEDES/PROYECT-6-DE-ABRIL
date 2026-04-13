@@ -1,0 +1,143 @@
+import mysql.connector
+import pandas as pd
+
+
+def conectar():
+    return mysql.connector.connect(
+        host='localhost',
+        user='root',
+        password='',
+        database='escuela'
+    )
+
+
+# ===============================
+# OBTENER USUARIO LOGIN
+# ===============================
+def obtener_usuarios(username):
+
+    conn = conectar()
+    cursor = conn.cursor(dictionary=True)
+
+    query = "SELECT * FROM usuarios WHERE username = %s"
+    cursor.execute(query, (username,))
+    usuario = cursor.fetchone()
+
+    cursor.close()
+    conn.close()
+
+    return usuario
+
+
+# ===============================
+# OBTENER ESTUDIANTES (para dashboard)
+# ===============================
+def obtener_estudiantes():
+
+    conn = conectar()
+    query = "SELECT * FROM estudiantes"
+    df = pd.read_sql(query, conn)
+    conn.close()
+
+    return df
+
+
+# ===============================
+# INSERTAR ESTUDIANTE (registro manual)
+# ===============================
+def insertar_estudiantes(nombre, edad, carrera, nota1, nota2, nota3, promedio, desempeno):
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    query = """
+    INSERT INTO estudiantes
+    (nombreEstu, edadEstu, carrera, nota1, nota2, nota3, promedio, desempeno)
+    VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+    """
+
+    cursor.execute(query, (nombre, edad, carrera, nota1, nota2, nota3, promedio, desempeno))
+    conn.commit()
+
+    cursor.close()
+    conn.close()
+
+
+# ===============================
+# VALIDAR DUPLICADO
+# ===============================
+def existe_estudiante(nombre, carrera):
+
+    conn = conectar()
+    cursor = conn.cursor()
+
+    query = """
+        SELECT COUNT(*)
+        FROM estudiantes
+        WHERE nombreEstu = %s AND carrera = %s
+    """
+
+    cursor.execute(query, (nombre, carrera))
+    resultado = cursor.fetchone()[0]
+
+    cursor.close()
+    conn.close()
+
+    return resultado > 0
+
+
+# ===============================
+# RANKING TOP 10
+# ===============================
+def top10_estudiantes():
+
+    conn = conectar()
+    cursor = conn.cursor(dictionary=True)
+
+    query = """
+        SELECT nombreEstu, carrera, promedio
+        FROM estudiantes
+        ORDER BY promedio DESC
+        LIMIT 10
+    """
+
+    cursor.execute(query)
+    data = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return data
+
+
+# ===============================
+# ESTUDIANTES EN RIESGO
+# ===============================
+def estudiantes_riesgo():
+
+    conn = conectar()
+    cursor = conn.cursor(dictionary=True)
+
+    query = """
+        SELECT nombreEstu, carrera, promedio
+        FROM estudiantes
+        WHERE promedio < 3
+        ORDER BY promedio ASC
+    """
+
+    cursor.execute(query)
+    data = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return data
+
+
+# ===============================
+# MAIN TEST
+# ===============================
+if __name__ == '__main__':
+    conn = conectar()
+    print("Conexión exitosa")
+    conn.close()

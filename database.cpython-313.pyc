@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduPanel · Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="page-dashboard">
+
+    <!-- NAVBAR -->
+    <nav class="navbar">
+        <div class="navbar-left">
+            <div class="brand-icon brand-icon--sm">🎓</div>
+            <span class="brand-name brand-name--sm">EduPanel</span>
+            <div class="user-pill">Hola, <span>{{ usuario }}</span></div>
+        </div>
+        <div class="navbar-links">
+            <a href="/registro_estudiante" class="btn btn-primary">+ Registrar estudiante</a>
+            <a href="/carga_masiva"        class="btn btn-secondary">📂 Cargar datos</a>
+            <a href="../logout"            class="btn btn-danger">Cerrar sesión</a>
+        </div>
+    </nav>
+
+    <!-- TABLERO DASH -->
+    <div class="dash-iframe-wrapper">
+        <iframe src="../dash_principal/"></iframe>
+    </div>
+
+    <!-- TABLAS -->
+    <div class="tables-grid">
+
+        <!-- Ranking -->
+        <div class="table-card">
+            <div class="table-header">
+                <div class="table-header-icon icon-gold">🏆</div>
+                <span class="table-title table-title--gold">Ranking Académico TOP 10</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Nombre</th>
+                        <th>Carrera</th>
+                        <th>Promedio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in ranking %}
+                    <tr>
+                        <td>
+                            {% set i = loop.index %}
+                            {% if   i == 1 %}<span class="rank-badge rank-1">1</span>
+                            {% elif i == 2 %}<span class="rank-badge rank-2">2</span>
+                            {% elif i == 3 %}<span class="rank-badge rank-3">3</span>
+                            {% else %}       <span class="rank-badge rank-other">{{ i }}</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ r.nombreEstu }}</td>
+                        <td><span class="carrera-chip">{{ r.carrera }}</span></td>
+                        <td>
+                            {% if   r.promedio >= 4.5 %}<span class="score-badge score-high">{{ r.promedio }}</span>
+                            {% elif r.promedio >= 3.5 %}<span class="score-badge score-mid">{{ r.promedio }}</span>
+                            {% else %}                  <span class="score-badge score-low">{{ r.promedio }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Riesgo -->
+        <div class="table-card">
+            <div class="table-header">
+                <div class="table-header-icon icon-danger">⚠️</div>
+                <span class="table-title table-title--danger">Estudiantes en Riesgo</span>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Nombre</th>
+                        <th>Carrera</th>
+                        <th>Promedio</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for e in riesgo %}
+                    <tr>
+                        <td>{{ e.nombreEstu }}</td>
+                        <td><span class="carrera-chip">{{ e.carrera }}</span></td>
+                        <td><span class="score-badge score-low">{{ e.promedio }}</span></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+
+</body>
+</html>

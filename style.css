@@ -1,0 +1,247 @@
+from flask import Flask, render_template, request, redirect, session, send_file
+from database import conectar, obtener_usuarios, insertar_estudiantes, existe_estudiante, top10_estudiantes, estudiantes_riesgo
+from dash_principal import crear_tablero
+import pandas as pd
+import unicodedata
+import os
+
+app = Flask(__name__)
+app.secret_key = '1031420951'
+
+crear_tablero(app)
+
+@app.after_request
+def add_header(response):
+    response.headers['Cache-Control'] = 'no store, no-cache, must-revalidate, max-age=0'
+    response.headers['Pragma'] = 'no-cache'
+    response.headers['Expires'] = '0'
+    return response
+
+
+# LOGIN
+@app.route('/', methods=['GET','POST'])
+def login():
+
+    if request.method == 'POST':
+
+        username = request.form['username']
+        password = request.form['password']
+
+        usuario = obtener_usuarios(username)
+
+        if usuario:
+            if usuario['passwordUser'] == password:
+                session['username'] = usuario['username']
+                session['rol'] = usuario['rolUsu']
+                return redirect('/dash_principal')
+            else:
+                return 'Contraseña incorrecta'
+        else:
+            return 'Usuario no existe'
+
+    return render_template('login.html')
+
+
+# DASHBOARD
+@app.route('/dash_principal')
+def dashPrincipal():
+
+    if 'username' not in session:
+        return redirect('/')
+
+    ranking = top10_estudiantes()
+    riesgo = estudiantes_riesgo()
+
+    return render_template(
+        'dash_principal.html',
+        usuario=session['username'],
+        ranking=ranking,
+        riesgo=riesgo
+    )
+
+
+# LOGOUT
+@app.route('/logout')
+def log_out():
+    session.clear()
+    return redirect('/')
+
+
+# REGISTRO MANUAL
+@app.route('/registro_estudiante', methods=['GET','POST'])
+def registro_estudiante():
+
+    if 'username' not in session:
+        return redirect('/')
+
+    if request.method == 'POST':
+
+        nombre = request.form['txtnombre']
+        edad = int(request.form['txtedad'])
+        carrera = request.form['txtcarrera']
+        notauno = float(request.form['txtnota1'])
+        notados = float(request.form['txtnota2'])
+        notatres = float(request.form['txtnota3'])
+
+        if existe_estudiante(nombre, carrera):
+            return "El estudiante ya está registrado"
+
+        promedio = round((notauno + notados + notatres) / 3, 2)
+        desempeno = calcular_desempeño(promedio)
+
+        insertar_estudiantes(nombre, edad, carrera, notauno, notados, notatres, promedio, desempeno)
+
+        return redirect('/dash_principal')
+
+    return render_template('registro_estudiante.html')
+
+
+# QUITAR ACENTOS
+def quitar_acentos(texto):
+    if pd.isna(texto):
+        return texto
+    texto = str(texto)
+    return ''.join(
+        c for c in unicodedata.normalize('NFD', texto)
+        if unicodedata.category(c) != 'Mn'
+    )
+
+
+# CALCULAR DESEMPEÑO
+def calcular_desempeño(prom):
+    if prom >= 4.5:
+        return 'Excelente'
+    elif prom >= 4:
+        return 'Bueno'
+    elif prom >= 3:
+        return 'Regular'
+    else:
+        return 'Bajo'
+
+
+# CARGA MASIVA
+@app.route('/carga_masiva', methods=['GET','POST'])
+def carga_masiva_datos():
+
+    if 'username' not in session:
+        return redirect('/')
+
+    if request.method == 'POST':
+
+        archivo = request.files['archivo']
+        df = pd.read_excel(archivo.stream, engine="openpyxl")
+
+        rechazados = []
+        insertados = 0
+        duplicados = 0
+
+        conn = conectar()
+        cursor = conn.cursor()
+
+        query = """
+        INSERT INTO estudiantes
+        (nombreEstu, edadEstu, carrera, nota1, nota2, nota3, promedio, desempeno)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
+        """
+
+        for _, row in df.iterrows():
+
+            motivo = ""
+
+            nombre = quitar_acentos(str(row.get('Nombre')).strip()).title()
+            carrera = quitar_acentos(str(row.get('Carrera')).strip()).title()
+            edad = row.get('Edad')
+            n1 = row.get('Nota1')
+            n2 = row.get('Nota2')
+            n3 = row.get('Nota3')
+
+            if pd.isna(nombre) or pd.isna(carrera) or pd.isna(edad) or pd.isna(n1) or pd.isna(n2) or pd.isna(n3):
+                motivo = "Datos faltantes"
+
+            elif edad < 0:
+                motivo = "Edad negativa"
+
+            elif not (0 <= n1 <= 5 and 0 <= n2 <= 5 and 0 <= n3 <= 5):
+                motivo = "Notas inválidas"
+
+            elif existe_estudiante(nombre, carrera):
+                motivo = "Duplicado"
+                duplicados += 1
+
+            if motivo != "":
+                fila = row.to_dict()
+                fila["Motivo"] = motivo
+                rechazados.append(fila)
+                continue
+
+            promedio = round((n1+n2+n3)/3,2)
+            desempeno = calcular_desempeño(promedio)
+
+            cursor.execute(query,(nombre,edad,carrera,n1,n2,n3,promedio,desempeno))
+            insertados += 1
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        if len(rechazados) > 0:
+            df_rech = pd.DataFrame(rechazados)
+            df_rech.to_excel("rechazados.xlsx", index=False)
+
+        return f"""
+                    <div style="background: linear-gradient(135deg,#020617,#0f172a,#1e293b); height:100vh; width:100vw; display:flex; justify-content:center; align-items:center; font-family:Segoe UI;">
+
+                        <div style="background:#111827; padding:40px; border-radius:15px; width:420px; box-shadow:0 10px 30px rgba(0,0,0,0.6); text-align:center;">
+
+                            <h2 style="color:white; margin-bottom:25px;">Resultado del cargue</h2>
+
+                            <div style="display:flex; flex-direction:column; gap:15px; margin-bottom:30px;">
+
+                                <div style="background:#1f2937; padding:15px; border-radius:10px;">
+                                    <span style="color:#9ca3af;">Insertados</span>
+                                    <h1 style="color:#22c55e; margin:5px;">{insertados}</h1>
+                                </div>
+
+                                <div style="background:#1f2937; padding:15px; border-radius:10px;">
+                                    <span style="color:#9ca3af;">Rechazados</span>
+                                    <h1 style="color:#ef4444; margin:5px;">{len(rechazados)}</h1>
+                                </div>
+
+                                <div style="background:#1f2937; padding:15px; border-radius:10px;">
+                                    <span style="color:#9ca3af;">Duplicados</span>
+                                    <h1 style="color:#f59e0b; margin:5px;">{duplicados}</h1>
+                                </div>
+
+                            </div>
+
+                            <div style="display:flex; flex-direction:column; gap:12px;">
+
+                                <a href="/dash_principal"
+                                style="text-decoration:none; background:#2563eb; padding:12px; border-radius:8px; color:white; font-weight:bold;">
+                                Volver al Dashboard
+                                </a>
+
+                                <a href="/descargar_rechazados"
+                                style="text-decoration:none; background:#374151; padding:12px; border-radius:8px; color:white; font-weight:bold;">
+                                Descargar rechazados
+                                </a>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+                """
+
+    return render_template('carga_masiva.html')
+
+
+@app.route('/descargar_rechazados')
+def descargar():
+    if os.path.exists("rechazados.xlsx"):
+        return send_file("rechazados.xlsx", as_attachment=True)
+    return "No hay archivo"
+
+
+if __name__ == '__main__':
+    app.run(debug=True)

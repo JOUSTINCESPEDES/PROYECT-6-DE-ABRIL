@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EduPanel · Carga Masiva</title>
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body class="page-form">
+
+    <div class="form-container form-container--narrow">
+        <a href="/dash_principal" class="back-link">← Volver al dashboard</a>
+
+        <div class="card">
+            <div class="card-header card-header--accent2">
+                <div class="header-icon header-icon--accent2">📂</div>
+                <h1>Carga Masiva</h1>
+                <p class="subtitle">Importa múltiples estudiantes desde un archivo Excel</p>
+            </div>
+
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+
+                    <div class="dropzone" id="dropzone">
+                        <input type="file" name="archivo" id="fileInput" accept=".xlsx,.xls" onchange="showFile(this)">
+                        <div class="dropzone-icon">📁</div>
+                        <div class="dropzone-title" id="dropzoneTitle">Arrastra tu archivo aquí</div>
+                        <div class="dropzone-sub">o <span>haz clic para seleccionar</span> · .xlsx, .xls</div>
+                    </div>
+
+                    <div class="file-info" id="fileInfo">
+                        <span class="file-icon">✅</span>
+                        <span class="file-name" id="fileName"></span>
+                    </div>
+
+                    <div class="format-hint">
+                        <div class="format-title">Columnas requeridas</div>
+                        <div class="format-cols">
+                            <span class="col-chip">Nombre</span>
+                            <span class="col-chip">Edad</span>
+                            <span class="col-chip">Carrera</span>
+                            <span class="col-chip">Nota1</span>
+                            <span class="col-chip">Nota2</span>
+                            <span class="col-chip">Nota3</span>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-submit btn-submit--accent2">Cargar estudiantes →</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showFile(input) {
+            if (input.files && input.files[0]) {
+                document.getElementById('fileName').textContent     = input.files[0].name;
+                document.getElementById('fileInfo').classList.add('visible');
+                document.getElementById('dropzoneTitle').textContent = 'Archivo seleccionado';
+            }
+        }
+    </script>
+
+</body>
+</html>
